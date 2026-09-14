@@ -236,6 +236,8 @@ set_service_dns() {
       active_device="${active_device%%,*}"
       if [ -n "$active_device" ] && [ "$active_device" != "--" ]; then
         nmcli device reapply "$active_device" >/dev/null 2>&1 || true
+      else
+        nmcli connection up "$service" >/dev/null 2>&1 || true
       fi
       ;;
   esac

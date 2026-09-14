@@ -2,6 +2,16 @@
 setlocal
 
 set "ALLOWLIST=%DNS_ALLOWLIST%"
+set "POWERSHELL_EXE="
+
+where powershell >nul 2>nul && set "POWERSHELL_EXE=powershell"
+if not defined POWERSHELL_EXE (
+  where pwsh >nul 2>nul && set "POWERSHELL_EXE=pwsh"
+)
+if not defined POWERSHELL_EXE (
+  echo Unable to find PowerShell. Install powershell.exe or pwsh.exe and try again.
+  exit /b 1
+)
 
 :parse_args
 if "%~1"=="" goto run_script
@@ -40,7 +50,7 @@ exit /b 1
 :run_script
 set "DNS_ALLOWLIST_WINDOWS=%ALLOWLIST%"
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+%POWERSHELL_EXE% -NoProfile -ExecutionPolicy Bypass -Command ^
   "$quad9 = @('9.9.9.9','149.112.112.112');" ^
   "$allowlist = @();" ^
   "if ($env:DNS_ALLOWLIST_WINDOWS) { $allowlist = $env:DNS_ALLOWLIST_WINDOWS -split '[,\s]+' | Where-Object { $_ }; }" ^
