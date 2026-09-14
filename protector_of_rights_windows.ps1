@@ -5,6 +5,12 @@ param(
 $quad9 = @('9.9.9.9', '149.112.112.112')
 $allowlistValues = @()
 
+$principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent())
+if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    Write-Error 'Run protector_of_rights.bat or protector_of_rights_windows.ps1 from an Administrator shell.'
+    exit 1
+}
+
 foreach ($rawValue in @($env:DNS_ALLOWLIST, $Allowlist)) {
     if (-not [string]::IsNullOrWhiteSpace($rawValue)) {
         $allowlistValues += $rawValue -split '[,\s]+' | Where-Object { $_ }

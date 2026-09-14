@@ -232,12 +232,22 @@ set_service_dns() {
       fi
 
       local active_device
+      local dns_applied=false
       active_device=$(nmcli -g GENERAL.DEVICES connection show "$service" | head -n 1)
       active_device="${active_device%%,*}"
       if [ -n "$active_device" ] && [ "$active_device" != "--" ]; then
-        nmcli device reapply "$active_device" >/dev/null 2>&1 || true
-      else
-        nmcli connection up "$service" >/dev/null 2>&1 || true
+        if nmcli device reapply "$active_device" >/dev/null 2>&1; then
+          dns_applied=true
+        fi
+      fi
+
+      if [ "$dns_applied" = false ] && nmcli connection up "$service" >/dev/null 2>&1; then
+        dns_applied=true
+      fi
+
+      if [ "$dns_applied" = false ]; then
+        echo "Failed to apply updated DNS settings for service: $service" >&2
+        return 1
       fi
       ;;
   esac

@@ -54,4 +54,5 @@ if defined ALLOWLIST (
   %POWERSHELL_EXE% -NoProfile -ExecutionPolicy Bypass -File "%~dp0protector_of_rights_windows.ps1"
 )
 
-if errorlevel 1 exit /b 1
+set "EXIT_CODE=%ERRORLEVEL%"
+exit /b %EXIT_CODE%
