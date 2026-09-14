@@ -175,11 +175,18 @@ while IFS= read -r service; do
 
   if [ "$replace_dns" = true ]; then
     if [ "$preserved_dns" = false ]; then
-      for quad9_dns in "${QUAD9_DNS[@]}"; do
-        if ! contains_dns "$quad9_dns" "${desired_dns[@]}"; then
-          desired_dns+=("$quad9_dns")
-        fi
-      done
+      desired_dns=()
+      if [ "${#current_dns[@]}" -le "${#QUAD9_DNS[@]}" ]; then
+        for quad9_dns in "${QUAD9_DNS[@]}"; do
+          if ! contains_dns "$quad9_dns" "${desired_dns[@]}"; then
+            desired_dns+=("$quad9_dns")
+          fi
+        done
+      else
+        for ((i = 0; i < ${#current_dns[@]}; i++)); do
+          desired_dns+=("${QUAD9_DNS[$((i % ${#QUAD9_DNS[@]}))]}")
+        done
+      fi
     elif [ "${#desired_dns[@]}" -lt "${#current_dns[@]}" ]; then
       for quad9_dns in "${QUAD9_DNS[@]}"; do
         if [ "${#desired_dns[@]}" -ge "${#current_dns[@]}" ]; then
