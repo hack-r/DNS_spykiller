@@ -121,12 +121,14 @@ while IFS= read -r service; do
 
   if dns_output=$(networksetup -getdnsservers "$service" 2>&1); then
     :
-  elif [[ "$dns_output" == *"There aren't any DNS Servers set"* ]]; then
-    echo "No DNS servers configured for network service: $service"
-    continue
   else
     echo "Unable to read DNS settings for network service: $service" >&2
     echo "$dns_output" >&2
+    continue
+  fi
+
+  if [[ "$dns_output" == *"There aren't any DNS Servers set"* ]]; then
+    echo "No DNS servers configured for network service: $service"
     continue
   fi
 
