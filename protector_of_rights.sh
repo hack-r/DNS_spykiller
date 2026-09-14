@@ -3,13 +3,22 @@
 set -euo pipefail
 
 readonly QUAD9_DNS=("9.9.9.9" "149.112.112.112")
+readonly OS_RELEASE_FILE="${OS_RELEASE_FILE:-/etc/os-release}"
 ALLOWLIST=()
+PLATFORM=""
+PLATFORM_LABEL=""
+LINUX_BACKEND=""
 
 usage() {
   cat <<'EOF'
 Usage: protector_of_rights.sh [--allow "IP [MORE_IPS]"]
 
-Replaces non-Quad9 DNS servers with Quad9 on macOS network services.
+Replaces non-Quad9 DNS servers with Quad9 on:
+  - macOS network services
+  - Debian-based Linux systems
+  - Fedora-based Linux systems
+
+For Windows, use protector_of_rights.bat.
 
 Options:
   --allow LIST   Space- or comma-separated DNS server IPs to preserve.
@@ -57,6 +66,20 @@ contains_dns() {
   return 1
 }
 
+contains_token() {
+  local needle="$1"
+  shift
+
+  local value
+  for value in "$@"; do
+    case " $value " in
+      *" $needle "*) return 0 ;;
+    esac
+  done
+
+  return 1
+}
+
 is_allowed_dns() {
   local dns_server="$1"
 
@@ -75,6 +98,166 @@ add_replacement_quad9() {
       return 0
     fi
   done
+}
+
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+normalize_dns_entries() {
+  local raw_dns="$1"
+  local dns_server
+
+  raw_dns="${raw_dns//$'\r'/ }"
+  raw_dns="${raw_dns//,/ }"
+  raw_dns="${raw_dns//;/ }"
+
+  for dns_server in $raw_dns; do
+    if [ -n "$dns_server" ] && [ "$dns_server" != "--" ]; then
+      printf '%s\n' "$dns_server"
+    fi
+  done
+}
+
+detect_platform() {
+  local uname_output
+  uname_output=$(uname -s)
+
+  case "$uname_output" in
+    Darwin)
+      PLATFORM="macos"
+      PLATFORM_LABEL="macOS"
+      ;;
+    Linux)
+      local distro_values=""
+      if [ -r "$OS_RELEASE_FILE" ]; then
+        distro_values=$(sed -n 's/^\(ID\|ID_LIKE\)=//p' "$OS_RELEASE_FILE" | tr -d '"' | tr '\n' ' ')
+      fi
+
+      if contains_token "debian" "$distro_values" || contains_token "ubuntu" "$distro_values"; then
+        PLATFORM="linux-debian"
+        PLATFORM_LABEL="Debian-based Linux"
+      elif contains_token "fedora" "$distro_values" || contains_token "rhel" "$distro_values" || contains_token "centos" "$distro_values"; then
+        PLATFORM="linux-fedora"
+        PLATFORM_LABEL="Fedora-based Linux"
+      else
+        echo "Unsupported Linux distribution. This script currently supports Debian- and Fedora-based Linux." >&2
+        exit 1
+      fi
+
+      if command_exists nmcli; then
+        LINUX_BACKEND="nmcli"
+      elif command_exists resolvectl; then
+        LINUX_BACKEND="resolvectl"
+      else
+        echo "Unable to manage DNS on $PLATFORM_LABEL: expected nmcli or resolvectl to be available." >&2
+        exit 1
+      fi
+      ;;
+    CYGWIN*|MINGW*|MSYS*)
+      echo "Windows is supported via protector_of_rights.bat. Please run that script instead." >&2
+      exit 1
+      ;;
+    *)
+      echo "Unsupported operating system: $uname_output" >&2
+      exit 1
+      ;;
+  esac
+}
+
+list_services() {
+  case "$PLATFORM" in
+    macos)
+      networksetup -listallnetworkservices
+      ;;
+    linux-debian|linux-fedora)
+      case "$LINUX_BACKEND" in
+        nmcli)
+          nmcli -t -f NAME connection show --active | sed '/^$/d'
+          ;;
+        resolvectl)
+          resolvectl status | sed -n 's/^Link [0-9][0-9]* (\([^)]*\)).*/\1/p'
+          ;;
+      esac
+      ;;
+  esac
+}
+
+get_service_dns() {
+  local service="$1"
+
+  case "$PLATFORM" in
+    macos)
+      networksetup -getdnsservers "$service"
+      ;;
+    linux-debian|linux-fedora)
+      case "$LINUX_BACKEND" in
+        nmcli)
+          local ipv4_dns ipv6_dns
+          ipv4_dns=$(nmcli -g ipv4.dns connection show "$service")
+          ipv6_dns=$(nmcli -g ipv6.dns connection show "$service")
+          normalize_dns_entries "$ipv4_dns"
+          normalize_dns_entries "$ipv6_dns"
+          ;;
+        resolvectl)
+          local dns_output
+          dns_output=$(resolvectl dns "$service")
+          dns_output="${dns_output#*:}"
+          normalize_dns_entries "$dns_output"
+          ;;
+      esac
+      ;;
+  esac
+}
+
+is_ipv6_address() {
+  case "$1" in
+    *:*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+set_service_dns() {
+  local service="$1"
+  shift
+
+  case "$PLATFORM" in
+    macos)
+      networksetup -setdnsservers "$service" "$@"
+      ;;
+    linux-debian|linux-fedora)
+      case "$LINUX_BACKEND" in
+        nmcli)
+          local dns_server
+          local ipv4_dns=()
+          local ipv6_dns=()
+
+          for dns_server in "$@"; do
+            if is_ipv6_address "$dns_server"; then
+              ipv6_dns+=("$dns_server")
+            else
+              ipv4_dns+=("$dns_server")
+            fi
+          done
+
+          if [ "${#ipv4_dns[@]}" -gt 0 ]; then
+            nmcli connection modify "$service" ipv4.ignore-auto-dns yes ipv4.dns "${ipv4_dns[*]}"
+          fi
+
+          if [ "${#ipv6_dns[@]}" -gt 0 ]; then
+            nmcli connection modify "$service" ipv6.ignore-auto-dns yes ipv6.dns "${ipv6_dns[*]}"
+          else
+            nmcli connection modify "$service" ipv6.ignore-auto-dns no ipv6.dns ""
+          fi
+
+          nmcli connection up "$service" >/dev/null
+          ;;
+        resolvectl)
+          resolvectl dns "$service" "$@"
+          ;;
+      esac
+      ;;
+  esac
 }
 
 if [ -n "${DNS_ALLOWLIST:-}" ]; then
@@ -105,30 +288,35 @@ while [ "$#" -gt 0 ]; do
   shift
 done
 
-services_output=$(networksetup -listallnetworkservices)
+detect_platform
+services_output=$(list_services)
 
 while IFS= read -r service; do
-  if [ -z "$service" ] || [ "$service" = "An asterisk (*) denotes that a network service is disabled." ]; then
+  if [ -z "$service" ]; then
     continue
   fi
 
-  if [[ "$service" == \** ]]; then
+  if [ "$PLATFORM" = "macos" ] && [ "$service" = "An asterisk (*) denotes that a network service is disabled." ]; then
+    continue
+  fi
+
+  if [ "$PLATFORM" = "macos" ] && [[ "$service" == \** ]]; then
     echo "Skipping disabled network service: ${service#\*}"
     continue
   fi
 
-  echo "Checking DNS settings for network service: $service"
+  echo "Checking DNS settings for $PLATFORM_LABEL service: $service"
 
-  if dns_output=$(networksetup -getdnsservers "$service" 2>&1); then
+  if dns_output=$(get_service_dns "$service" 2>&1); then
     :
   else
-    echo "Unable to read DNS settings for network service: $service" >&2
+    echo "Unable to read DNS settings for service: $service" >&2
     echo "$dns_output" >&2
     continue
   fi
 
-  if [[ "$dns_output" == *"There aren't any DNS Servers set"* ]]; then
-    echo "No DNS servers configured for network service: $service"
+  if [ "$PLATFORM" = "macos" ] && [[ "$dns_output" == *"There aren't any DNS Servers set"* ]]; then
+    echo "No DNS servers configured for service: $service"
     continue
   fi
 
@@ -140,7 +328,7 @@ while IFS= read -r service; do
   done <<< "$dns_output"
 
   if [ "${#current_dns[@]}" -eq 0 ]; then
-    echo "No readable DNS servers found for network service: $service"
+    echo "No readable DNS servers found for service: $service"
     continue
   fi
 
@@ -193,10 +381,10 @@ while IFS= read -r service; do
       done
     fi
 
-    networksetup -setdnsservers "$service" "${desired_dns[@]}"
+    set_service_dns "$service" "${desired_dns[@]}"
   else
-    echo "DNS settings already allowed for network service: $service"
+    echo "DNS settings already allowed for service: $service"
   fi
 done <<< "$services_output"
 
-echo "DNS checks and modifications complete."
+echo "DNS checks and modifications complete for $PLATFORM_LABEL."
