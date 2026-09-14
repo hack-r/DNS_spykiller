@@ -243,14 +243,14 @@ set_service_dns() {
         ipv4_dns_csv=$(join_by_comma "${ipv4_dns[@]}")
         nmcli connection modify "$service" ipv4.ignore-auto-dns yes ipv4.dns "$ipv4_dns_csv"
       else
-        nmcli connection modify "$service" ipv4.dns "" ipv4.ignore-auto-dns yes
+        nmcli connection modify "$service" ipv4.dns "" ipv4.ignore-auto-dns no
       fi
 
       if [ "${#ipv6_dns[@]}" -gt 0 ]; then
         ipv6_dns_csv=$(join_by_comma "${ipv6_dns[@]}")
         nmcli connection modify "$service" ipv6.ignore-auto-dns yes ipv6.dns "$ipv6_dns_csv"
       else
-        nmcli connection modify "$service" ipv6.dns "" ipv6.ignore-auto-dns yes
+        nmcli connection modify "$service" ipv6.dns "" ipv6.ignore-auto-dns no
       fi
 
       local active_device
