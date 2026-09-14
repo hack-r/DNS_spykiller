@@ -40,5 +40,5 @@ This is useful if you intentionally route DNS through a local DNSCrypt listener 
 ## Notes
 
 - The Unix shell script auto-detects macOS vs. supported Linux distributions.
-- On Linux, the script currently supports NetworkManager-managed connections through `nmcli`, updates the saved connection profile, and reapplies the change immediately only when the connection is currently activated.
+- On Linux, the script currently supports active NetworkManager-managed connections through `nmcli`.
 - The Windows batch file uses PowerShell to update active IPv4 interfaces, currently leaves IPv6 DNS unchanged, and should be run from an Administrator shell.

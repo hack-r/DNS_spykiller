@@ -2,14 +2,9 @@
 setlocal
 
 set "ALLOWLIST=%DNS_ALLOWLIST%"
-set "POWERSHELL_EXE="
-
-where powershell >nul 2>nul && set "POWERSHELL_EXE=powershell"
-if not defined POWERSHELL_EXE (
-  where pwsh >nul 2>nul && set "POWERSHELL_EXE=pwsh"
-)
-if not defined POWERSHELL_EXE (
-  echo Unable to find PowerShell. Install powershell.exe or pwsh.exe and try again.
+where powershell >nul 2>nul
+if errorlevel 1 (
+  echo Unable to find powershell.exe. This Windows script requires Windows PowerShell.
   exit /b 1
 )
 
@@ -49,9 +44,9 @@ exit /b 1
 
 :run_script
 if defined ALLOWLIST (
-  %POWERSHELL_EXE% -NoProfile -File "%~dp0protector_of_rights_windows.ps1" -Allowlist "%ALLOWLIST%"
+  powershell -NoProfile -File "%~dp0protector_of_rights_windows.ps1" -Allowlist "%ALLOWLIST%"
 ) else (
-  %POWERSHELL_EXE% -NoProfile -File "%~dp0protector_of_rights_windows.ps1"
+  powershell -NoProfile -File "%~dp0protector_of_rights_windows.ps1"
 )
 
 set "EXIT_CODE=%ERRORLEVEL%"

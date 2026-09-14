@@ -8,7 +8,6 @@ ALLOWLIST=()
 PLATFORM=""
 PLATFORM_LABEL=""
 LINUX_BACKEND=""
-LAST_SET_DNS_STATUS=""
 
 usage() {
   cat <<'EOF'
@@ -220,7 +219,6 @@ is_ipv6_address() {
 set_service_dns() {
   local service="$1"
   shift
-  LAST_SET_DNS_STATUS="applied"
 
   case "$PLATFORM" in
     macos)
@@ -260,34 +258,7 @@ set_service_dns() {
         nmcli connection modify "$service" ipv6.dns "" ipv6.ignore-auto-dns "$current_ipv6_ignore_auto"
       fi
 
-      local active_device
-      local active_devices_raw
-      local has_active_device=false
-      local dns_applied=false
-      active_devices_raw=$(nmcli -g GENERAL.DEVICES connection show "$service" | head -n 1)
-      active_devices_raw="${active_devices_raw//:/ }"
-      active_devices_raw="${active_devices_raw//,/ }"
-      for active_device in $active_devices_raw; do
-        if [ -n "$active_device" ] && [ "$active_device" != "--" ]; then
-          has_active_device=true
-          if nmcli device reapply "$active_device" >/dev/null 2>&1; then
-            dns_applied=true
-          fi
-        fi
-      done
-
-      if [ "$dns_applied" = false ]; then
-        if [ "$has_active_device" = true ]; then
-          if nmcli connection up "$service" >/dev/null 2>&1; then
-            dns_applied=true
-          fi
-        else
-          LAST_SET_DNS_STATUS="saved"
-          dns_applied=true
-        fi
-      fi
-
-      if [ "$dns_applied" = false ]; then
+      if ! nmcli connection up "$service" >/dev/null 2>&1; then
         echo "Failed to apply updated DNS settings for service: $service" >&2
         return 1
       fi
@@ -422,9 +393,6 @@ while IFS= read -r service; do
     fi
 
     set_service_dns "$service" "${desired_dns[@]}"
-    if [ "$LAST_SET_DNS_STATUS" = "saved" ]; then
-      echo "Saved DNS settings were updated for service: $service_label"
-    fi
   else
     echo "DNS settings already allowed for service: $service_label"
   fi

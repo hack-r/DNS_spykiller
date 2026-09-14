@@ -11,6 +11,13 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
     exit 1
 }
 
+foreach ($requiredCommand in 'Get-NetAdapter', 'Get-DnsClientServerAddress', 'Get-NetIPInterface') {
+    if (-not (Get-Command $requiredCommand -ErrorAction SilentlyContinue)) {
+        Write-Error ('Required Windows networking cmdlet is unavailable: ' + $requiredCommand)
+        exit 1
+    }
+}
+
 foreach ($rawValue in @($env:DNS_ALLOWLIST, $Allowlist)) {
     if (-not [string]::IsNullOrWhiteSpace($rawValue)) {
         $allowlistValues += $rawValue -split '[,\s]+' | Where-Object { $_ }
