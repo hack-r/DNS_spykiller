@@ -231,7 +231,12 @@ set_service_dns() {
         nmcli connection modify "$service" ipv6.dns "" ipv6.ignore-auto-dns no
       fi
 
-      nmcli connection up "$service" >/dev/null
+      local active_device
+      active_device=$(nmcli -g GENERAL.DEVICES connection show "$service" | head -n 1)
+      active_device="${active_device%%,*}"
+      if [ -n "$active_device" ] && [ "$active_device" != "--" ]; then
+        nmcli device reapply "$active_device" >/dev/null 2>&1 || true
+      fi
       ;;
   esac
 }

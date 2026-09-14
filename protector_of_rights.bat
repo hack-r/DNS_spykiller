@@ -22,14 +22,14 @@ if /I "%~1"=="--allow" (
 if /I "%~1"=="-h" (
   echo Usage: protector_of_rights.bat [--allow "IP [MORE_IPS]"]
   echo.
-  echo Replaces non-Quad9 DNS servers with Quad9 on active Windows interfaces.
+  echo Replaces non-Quad9 IPv4 DNS servers with Quad9 on active Windows interfaces.
   echo Supports the same DNS_ALLOWLIST and --allow inputs as protector_of_rights.sh.
   exit /b 0
 )
 if /I "%~1"=="--help" (
   echo Usage: protector_of_rights.bat [--allow "IP [MORE_IPS]"]
   echo.
-  echo Replaces non-Quad9 DNS servers with Quad9 on active Windows interfaces.
+  echo Replaces non-Quad9 IPv4 DNS servers with Quad9 on active Windows interfaces.
   echo Supports the same DNS_ALLOWLIST and --allow inputs as protector_of_rights.sh.
   exit /b 0
 )

@@ -7,7 +7,7 @@ Supported platforms:
 - macOS via `networksetup`
 - Debian-based Linux via NetworkManager `nmcli`
 - Fedora-based Linux via NetworkManager `nmcli`
-- Windows via `protector_of_rights.bat`
+- Windows via `protector_of_rights.bat` for IPv4 DNS
 
 ## Usage
 
@@ -21,7 +21,7 @@ On Windows:
 protector_of_rights.bat
 ```
 
-The Windows script accepts the same `--allow` flag and `DNS_ALLOWLIST` environment variable as the Unix shell script.
+The Windows script accepts the same `--allow` flag and `DNS_ALLOWLIST` environment variable as the Unix shell script for IPv4 DNS updates.
 
 Preserve specific resolver IPs with an allowlist:
 
@@ -41,4 +41,4 @@ This is useful if you intentionally route DNS through a local DNSCrypt listener 
 
 - The Unix shell script auto-detects macOS vs. supported Linux distributions.
 - On Linux, the script currently supports NetworkManager-managed connections through `nmcli`.
-- The Windows batch file uses PowerShell to update active IPv4 interfaces and should be run from an Administrator shell.
+- The Windows batch file uses PowerShell to update active IPv4 interfaces, currently leaves IPv6 DNS unchanged, and should be run from an Administrator shell.
