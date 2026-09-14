@@ -104,6 +104,11 @@ command_exists() {
   command -v "$1" >/dev/null 2>&1
 }
 
+join_by_comma() {
+  local IFS=,
+  printf '%s' "$*"
+}
+
 normalize_dns_entries() {
   local raw_dns="$1"
   local dns_server
@@ -169,7 +174,20 @@ list_services() {
       networksetup -listallnetworkservices
       ;;
     linux-debian|linux-fedora)
-      nmcli -t -f NAME connection show --active | sed '/^$/d'
+      nmcli -t -f UUID connection show --active | sed '/^$/d'
+      ;;
+  esac
+}
+
+get_service_label() {
+  local service="$1"
+
+  case "$PLATFORM" in
+    macos)
+      printf '%s\n' "$service"
+      ;;
+    linux-debian|linux-fedora)
+      nmcli -g connection.id connection show "$service"
       ;;
   esac
 }
@@ -210,6 +228,8 @@ set_service_dns() {
       local dns_server
       local ipv4_dns=()
       local ipv6_dns=()
+      local ipv4_dns_csv=""
+      local ipv6_dns_csv=""
 
       for dns_server in "$@"; do
         if is_ipv6_address "$dns_server"; then
@@ -220,13 +240,15 @@ set_service_dns() {
       done
 
       if [ "${#ipv4_dns[@]}" -gt 0 ]; then
-        nmcli connection modify "$service" ipv4.ignore-auto-dns yes ipv4.dns "${ipv4_dns[*]}"
+        ipv4_dns_csv=$(join_by_comma "${ipv4_dns[@]}")
+        nmcli connection modify "$service" ipv4.ignore-auto-dns yes ipv4.dns "$ipv4_dns_csv"
       else
         nmcli connection modify "$service" ipv4.dns "" ipv4.ignore-auto-dns yes
       fi
 
       if [ "${#ipv6_dns[@]}" -gt 0 ]; then
-        nmcli connection modify "$service" ipv6.ignore-auto-dns yes ipv6.dns "${ipv6_dns[*]}"
+        ipv6_dns_csv=$(join_by_comma "${ipv6_dns[@]}")
+        nmcli connection modify "$service" ipv6.ignore-auto-dns yes ipv6.dns "$ipv6_dns_csv"
       else
         nmcli connection modify "$service" ipv6.dns "" ipv6.ignore-auto-dns yes
       fi
@@ -290,6 +312,7 @@ if [[ "$PLATFORM" == linux-* ]] && [ -z "$services_output" ]; then
 fi
 
 while IFS= read -r service; do
+  service_label="$service"
   if [ -z "$service" ]; then
     continue
   fi
@@ -303,18 +326,22 @@ while IFS= read -r service; do
     continue
   fi
 
-  echo "Checking DNS settings for $PLATFORM_LABEL service: $service"
+  if [[ "$PLATFORM" == linux-* ]]; then
+    service_label=$(get_service_label "$service")
+  fi
+
+  echo "Checking DNS settings for $PLATFORM_LABEL service: $service_label"
 
   if dns_output=$(get_service_dns "$service" 2>&1); then
     :
   else
-    echo "Unable to read DNS settings for service: $service" >&2
+    echo "Unable to read DNS settings for service: $service_label" >&2
     echo "$dns_output" >&2
     continue
   fi
 
   if [ "$PLATFORM" = "macos" ] && [[ "$dns_output" == *"There aren't any DNS Servers set"* ]]; then
-    echo "No DNS servers configured for service: $service"
+    echo "No DNS servers configured for service: $service_label"
     continue
   fi
 
@@ -326,7 +353,7 @@ while IFS= read -r service; do
   done <<< "$dns_output"
 
   if [ "${#current_dns[@]}" -eq 0 ]; then
-    echo "No readable DNS servers found for service: $service"
+    echo "No readable DNS servers found for service: $service_label"
     continue
   fi
 
@@ -353,7 +380,7 @@ while IFS= read -r service; do
         desired_dns+=("$dns_server")
       fi
     else
-      echo "Replacing DNS server on $service: $dns_server"
+      echo "Replacing DNS server on $service_label: $dns_server"
       replace_dns=true
       add_replacement_quad9
     fi
@@ -381,7 +408,7 @@ while IFS= read -r service; do
 
     set_service_dns "$service" "${desired_dns[@]}"
   else
-    echo "DNS settings already allowed for service: $service"
+    echo "DNS settings already allowed for service: $service_label"
   fi
 done <<< "$services_output"
 

@@ -49,9 +49,9 @@ exit /b 1
 
 :run_script
 if defined ALLOWLIST (
-  %POWERSHELL_EXE% -NoProfile -ExecutionPolicy Bypass -File "%~dp0protector_of_rights_windows.ps1" -Allowlist "%ALLOWLIST%"
+  %POWERSHELL_EXE% -NoProfile -File "%~dp0protector_of_rights_windows.ps1" -Allowlist "%ALLOWLIST%"
 ) else (
-  %POWERSHELL_EXE% -NoProfile -ExecutionPolicy Bypass -File "%~dp0protector_of_rights_windows.ps1"
+  %POWERSHELL_EXE% -NoProfile -File "%~dp0protector_of_rights_windows.ps1"
 )
 
 set "EXIT_CODE=%ERRORLEVEL%"
