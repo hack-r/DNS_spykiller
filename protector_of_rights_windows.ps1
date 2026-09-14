@@ -18,7 +18,7 @@ foreach ($rawValue in @($env:DNS_ALLOWLIST, $Allowlist)) {
 }
 
 $allowed = $quad9 + ($allowlistValues | Select-Object -Unique)
-$adapters = Get-NetIPConfiguration | Where-Object { $_.NetAdapter.Status -eq 'Up' -and $_.IPv4Address } | Select-Object -ExpandProperty NetAdapter | Sort-Object -Property InterfaceIndex -Unique
+$adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' } | Where-Object { Get-NetIPInterface -InterfaceIndex $_.InterfaceIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue } | Sort-Object -Property InterfaceIndex -Unique
 
 foreach ($adapter in $adapters) {
     $dnsConfig = Get-DnsClientServerAddress -InterfaceIndex $adapter.InterfaceIndex -AddressFamily IPv4

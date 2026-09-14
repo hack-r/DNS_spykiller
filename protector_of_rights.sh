@@ -8,6 +8,7 @@ ALLOWLIST=()
 PLATFORM=""
 PLATFORM_LABEL=""
 LINUX_BACKEND=""
+LAST_SET_DNS_STATUS=""
 
 usage() {
   cat <<'EOF'
@@ -219,6 +220,7 @@ is_ipv6_address() {
 set_service_dns() {
   local service="$1"
   shift
+  LAST_SET_DNS_STATUS="applied"
 
   case "$PLATFORM" in
     macos)
@@ -275,6 +277,7 @@ set_service_dns() {
             dns_applied=true
           fi
         else
+          LAST_SET_DNS_STATUS="saved"
           dns_applied=true
         fi
       fi
@@ -414,6 +417,9 @@ while IFS= read -r service; do
     fi
 
     set_service_dns "$service" "${desired_dns[@]}"
+    if [ "$LAST_SET_DNS_STATUS" = "saved" ]; then
+      echo "Saved DNS settings were updated for service: $service_label"
+    fi
   else
     echo "DNS settings already allowed for service: $service_label"
   fi
