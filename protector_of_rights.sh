@@ -178,6 +178,16 @@ while IFS= read -r service; do
           desired_dns+=("$quad9_dns")
         fi
       done
+    elif [ "${#desired_dns[@]}" -lt "${#current_dns[@]}" ]; then
+      for quad9_dns in "${QUAD9_DNS[@]}"; do
+        if [ "${#desired_dns[@]}" -ge "${#current_dns[@]}" ]; then
+          break
+        fi
+
+        if ! contains_dns "$quad9_dns" "${desired_dns[@]}"; then
+          desired_dns+=("$quad9_dns")
+        fi
+      done
     fi
 
     networksetup -setdnsservers "$service" "${desired_dns[@]}"
