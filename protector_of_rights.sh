@@ -174,7 +174,7 @@ list_services() {
       networksetup -listallnetworkservices
       ;;
     linux-debian|linux-fedora)
-      nmcli -t -f UUID connection show | sed '/^$/d'
+      nmcli -t -f UUID connection show --active | sed '/^$/d'
       ;;
   esac
 }
@@ -274,8 +274,6 @@ set_service_dns() {
           if nmcli connection up "$service" >/dev/null 2>&1; then
             dns_applied=true
           fi
-        else
-          dns_applied=true
         fi
       fi
 
