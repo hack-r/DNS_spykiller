@@ -270,7 +270,7 @@ set_service_dns() {
       done
 
       if [ "$dns_applied" = false ]; then
-        if [[ "$connection_state" == *activated* ]]; then
+        if [[ "$connection_state" == activated* ]]; then
           if nmcli connection up "$service" >/dev/null 2>&1; then
             dns_applied=true
           fi
