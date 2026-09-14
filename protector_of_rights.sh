@@ -15,8 +15,8 @@ Usage: protector_of_rights.sh [--allow "IP [MORE_IPS]"]
 
 Replaces non-Quad9 DNS servers with Quad9 on:
   - macOS network services
-  - Debian-based Linux systems
-  - Fedora-based Linux systems
+  - Debian-based Linux systems with NetworkManager
+  - Fedora-based Linux systems with NetworkManager
 
 For Windows, use protector_of_rights.bat.
 
@@ -147,10 +147,8 @@ detect_platform() {
 
       if command_exists nmcli; then
         LINUX_BACKEND="nmcli"
-      elif command_exists resolvectl; then
-        LINUX_BACKEND="resolvectl"
       else
-        echo "Unable to manage DNS on $PLATFORM_LABEL: expected nmcli or resolvectl to be available." >&2
+        echo "Unable to manage DNS on $PLATFORM_LABEL: this script requires NetworkManager's nmcli." >&2
         exit 1
       fi
       ;;
@@ -171,14 +169,7 @@ list_services() {
       networksetup -listallnetworkservices
       ;;
     linux-debian|linux-fedora)
-      case "$LINUX_BACKEND" in
-        nmcli)
-          nmcli -t -f NAME connection show --active | sed '/^$/d'
-          ;;
-        resolvectl)
-          resolvectl status | sed -n 's/^Link [0-9][0-9]* (\([^)]*\)).*/\1/p'
-          ;;
-      esac
+      nmcli -t -f NAME connection show --active | sed '/^$/d'
       ;;
   esac
 }
@@ -191,21 +182,11 @@ get_service_dns() {
       networksetup -getdnsservers "$service"
       ;;
     linux-debian|linux-fedora)
-      case "$LINUX_BACKEND" in
-        nmcli)
-          local ipv4_dns ipv6_dns
-          ipv4_dns=$(nmcli -g ipv4.dns connection show "$service")
-          ipv6_dns=$(nmcli -g ipv6.dns connection show "$service")
-          normalize_dns_entries "$ipv4_dns"
-          normalize_dns_entries "$ipv6_dns"
-          ;;
-        resolvectl)
-          local dns_output
-          dns_output=$(resolvectl dns "$service")
-          dns_output="${dns_output#*:}"
-          normalize_dns_entries "$dns_output"
-          ;;
-      esac
+      local ipv4_dns ipv6_dns
+      ipv4_dns=$(nmcli -g ipv4.dns connection show "$service")
+      ipv6_dns=$(nmcli -g ipv6.dns connection show "$service")
+      normalize_dns_entries "$ipv4_dns"
+      normalize_dns_entries "$ipv6_dns"
       ;;
   esac
 }
@@ -226,38 +207,31 @@ set_service_dns() {
       networksetup -setdnsservers "$service" "$@"
       ;;
     linux-debian|linux-fedora)
-      case "$LINUX_BACKEND" in
-        nmcli)
-          local dns_server
-          local ipv4_dns=()
-          local ipv6_dns=()
+      local dns_server
+      local ipv4_dns=()
+      local ipv6_dns=()
 
-          for dns_server in "$@"; do
-            if is_ipv6_address "$dns_server"; then
-              ipv6_dns+=("$dns_server")
-            else
-              ipv4_dns+=("$dns_server")
-            fi
-          done
+      for dns_server in "$@"; do
+        if is_ipv6_address "$dns_server"; then
+          ipv6_dns+=("$dns_server")
+        else
+          ipv4_dns+=("$dns_server")
+        fi
+      done
 
-          if [ "${#ipv4_dns[@]}" -gt 0 ]; then
-            nmcli connection modify "$service" ipv4.ignore-auto-dns yes ipv4.dns "${ipv4_dns[*]}"
-          else
-            nmcli connection modify "$service" ipv4.dns "" ipv4.ignore-auto-dns no
-          fi
+      if [ "${#ipv4_dns[@]}" -gt 0 ]; then
+        nmcli connection modify "$service" ipv4.ignore-auto-dns yes ipv4.dns "${ipv4_dns[*]}"
+      else
+        nmcli connection modify "$service" ipv4.dns "" ipv4.ignore-auto-dns no
+      fi
 
-          if [ "${#ipv6_dns[@]}" -gt 0 ]; then
-            nmcli connection modify "$service" ipv6.ignore-auto-dns yes ipv6.dns "${ipv6_dns[*]}"
-          else
-            nmcli connection modify "$service" ipv6.dns "" ipv6.ignore-auto-dns no
-          fi
+      if [ "${#ipv6_dns[@]}" -gt 0 ]; then
+        nmcli connection modify "$service" ipv6.ignore-auto-dns yes ipv6.dns "${ipv6_dns[*]}"
+      else
+        nmcli connection modify "$service" ipv6.dns "" ipv6.ignore-auto-dns no
+      fi
 
-          nmcli connection up "$service" >/dev/null
-          ;;
-        resolvectl)
-          resolvectl dns "$service" "$@"
-          ;;
-      esac
+      nmcli connection up "$service" >/dev/null
       ;;
   esac
 }
@@ -292,6 +266,11 @@ done
 
 detect_platform
 services_output=$(list_services)
+
+if [[ "$PLATFORM" == linux-* ]] && [ -z "$services_output" ]; then
+  echo "No active NetworkManager connections were found on $PLATFORM_LABEL." >&2
+  exit 1
+fi
 
 while IFS= read -r service; do
   if [ -z "$service" ]; then

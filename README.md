@@ -5,8 +5,8 @@ This project reviews configured DNS settings and replaces non-Quad9 DNS servers 
 Supported platforms:
 
 - macOS via `networksetup`
-- Debian-based Linux via `nmcli` or `resolvectl`
-- Fedora-based Linux via `nmcli` or `resolvectl`
+- Debian-based Linux via NetworkManager `nmcli`
+- Fedora-based Linux via NetworkManager `nmcli`
 - Windows via `protector_of_rights.bat`
 
 ## Usage
@@ -20,6 +20,8 @@ On Windows:
 ```bat
 protector_of_rights.bat
 ```
+
+The Windows script accepts the same `--allow` flag and `DNS_ALLOWLIST` environment variable as the Unix shell script.
 
 Preserve specific resolver IPs with an allowlist:
 
@@ -38,5 +40,5 @@ This is useful if you intentionally route DNS through a local DNSCrypt listener 
 ## Notes
 
 - The Unix shell script auto-detects macOS vs. supported Linux distributions.
-- On Linux, the script expects either `nmcli` or `resolvectl` to be available.
+- On Linux, the script currently supports NetworkManager-managed connections through `nmcli`.
 - The Windows batch file uses PowerShell to update active IPv4 interfaces and should be run from an Administrator shell.
