@@ -232,6 +232,11 @@ set_service_dns() {
       local ipv6_dns=()
       local ipv4_dns_csv=""
       local ipv6_dns_csv=""
+      local current_ipv4_ignore_auto
+      local current_ipv6_ignore_auto
+
+      current_ipv4_ignore_auto=$(nmcli -g ipv4.ignore-auto-dns connection show "$service")
+      current_ipv6_ignore_auto=$(nmcli -g ipv6.ignore-auto-dns connection show "$service")
 
       for dns_server in "$@"; do
         if is_ipv6_address "$dns_server"; then
@@ -245,14 +250,14 @@ set_service_dns() {
         ipv4_dns_csv=$(join_by_comma "${ipv4_dns[@]}")
         nmcli connection modify "$service" ipv4.ignore-auto-dns yes ipv4.dns "$ipv4_dns_csv"
       else
-        nmcli connection modify "$service" ipv4.dns "" ipv4.ignore-auto-dns no
+        nmcli connection modify "$service" ipv4.dns "" ipv4.ignore-auto-dns "$current_ipv4_ignore_auto"
       fi
 
       if [ "${#ipv6_dns[@]}" -gt 0 ]; then
         ipv6_dns_csv=$(join_by_comma "${ipv6_dns[@]}")
         nmcli connection modify "$service" ipv6.ignore-auto-dns yes ipv6.dns "$ipv6_dns_csv"
       else
-        nmcli connection modify "$service" ipv6.dns "" ipv6.ignore-auto-dns no
+        nmcli connection modify "$service" ipv6.dns "" ipv6.ignore-auto-dns "$current_ipv6_ignore_auto"
       fi
 
       local active_device
