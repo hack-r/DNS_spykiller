@@ -63,6 +63,20 @@ is_allowed_dns() {
   contains_dns "$dns_server" "${QUAD9_DNS[@]}" || contains_dns "$dns_server" "${ALLOWLIST[@]}"
 }
 
+add_replacement_quad9() {
+  local quad9_dns
+
+  while [ "$quad9_index" -lt "${#replacement_quad9_pool[@]}" ]; do
+    quad9_dns="${replacement_quad9_pool[$quad9_index]}"
+    quad9_index=$((quad9_index + 1))
+
+    if ! contains_dns "$quad9_dns" "${desired_dns[@]}"; then
+      desired_dns+=("$quad9_dns")
+      return 0
+    fi
+  done
+}
+
 if [ -n "${DNS_ALLOWLIST:-}" ]; then
   append_allowlist_entries "$DNS_ALLOWLIST"
 fi
@@ -130,6 +144,18 @@ while IFS= read -r service; do
 
   desired_dns=()
   replace_dns=false
+  replacement_quad9_pool=()
+  quad9_index=0
+
+  for quad9_dns in "${QUAD9_DNS[@]}"; do
+    if ! contains_dns "$quad9_dns" "${current_dns[@]}"; then
+      replacement_quad9_pool+=("$quad9_dns")
+    fi
+  done
+
+  for quad9_dns in "${QUAD9_DNS[@]}"; do
+    replacement_quad9_pool+=("$quad9_dns")
+  done
 
   for dns_server in "${current_dns[@]}"; do
     if is_allowed_dns "$dns_server"; then
@@ -139,16 +165,11 @@ while IFS= read -r service; do
     else
       echo "Replacing DNS server on $service: $dns_server"
       replace_dns=true
+      add_replacement_quad9
     fi
   done
 
   if [ "$replace_dns" = true ]; then
-    for quad9_dns in "${QUAD9_DNS[@]}"; do
-      if ! contains_dns "$quad9_dns" "${desired_dns[@]}"; then
-        desired_dns+=("$quad9_dns")
-      fi
-    done
-
     networksetup -setdnsservers "$service" "${desired_dns[@]}"
   else
     echo "DNS settings already allowed for network service: $service"
