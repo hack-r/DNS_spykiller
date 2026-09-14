@@ -39,4 +39,4 @@ This is useful if you intentionally route DNS through a local DNSCrypt listener 
 
 - The Unix shell script auto-detects macOS vs. supported Linux distributions.
 - On Linux, the script expects either `nmcli` or `resolvectl` to be available.
-- The Windows batch file uses PowerShell to update active IPv4 interfaces.
+- The Windows batch file uses PowerShell to update active IPv4 interfaces and should be run from an Administrator shell.

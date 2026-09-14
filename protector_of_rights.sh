@@ -242,12 +242,14 @@ set_service_dns() {
 
           if [ "${#ipv4_dns[@]}" -gt 0 ]; then
             nmcli connection modify "$service" ipv4.ignore-auto-dns yes ipv4.dns "${ipv4_dns[*]}"
+          else
+            nmcli connection modify "$service" ipv4.dns "" ipv4.ignore-auto-dns no
           fi
 
           if [ "${#ipv6_dns[@]}" -gt 0 ]; then
             nmcli connection modify "$service" ipv6.ignore-auto-dns yes ipv6.dns "${ipv6_dns[*]}"
           else
-            nmcli connection modify "$service" ipv6.ignore-auto-dns no ipv6.dns ""
+            nmcli connection modify "$service" ipv6.dns "" ipv6.ignore-auto-dns no
           fi
 
           nmcli connection up "$service" >/dev/null

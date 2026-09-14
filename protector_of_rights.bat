@@ -3,9 +3,10 @@ setlocal
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$quad9 = @('9.9.9.9','149.112.112.112');" ^
-  "$adapters = Get-DnsClientServerAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -and $_.ServerAddresses -and $_.ServerAddresses.Count -gt 0 };" ^
+  "$adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' };" ^
   "foreach ($adapter in $adapters) {" ^
-  "  $current = @($adapter.ServerAddresses);" ^
+  "  $dnsConfig = Get-DnsClientServerAddress -InterfaceIndex $adapter.InterfaceIndex -AddressFamily IPv4;" ^
+  "  $current = @($dnsConfig.ServerAddresses);" ^
   "  if (($current | Where-Object { $_ -notin $quad9 }).Count -eq 0) {" ^
   "    Write-Output ('DNS settings already allowed for interface: ' + $adapter.InterfaceAlias);" ^
   "    continue;" ^
