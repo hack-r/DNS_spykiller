@@ -262,14 +262,14 @@ set_service_dns() {
 
       local active_device
       local active_devices_raw
-      local connection_state
+      local has_active_device=false
       local dns_applied=false
-      connection_state=$(nmcli -g GENERAL.STATE connection show "$service" | head -n 1)
       active_devices_raw=$(nmcli -g GENERAL.DEVICES connection show "$service" | head -n 1)
       active_devices_raw="${active_devices_raw//:/ }"
       active_devices_raw="${active_devices_raw//,/ }"
       for active_device in $active_devices_raw; do
         if [ -n "$active_device" ] && [ "$active_device" != "--" ]; then
+          has_active_device=true
           if nmcli device reapply "$active_device" >/dev/null 2>&1; then
             dns_applied=true
           fi
@@ -277,7 +277,7 @@ set_service_dns() {
       done
 
       if [ "$dns_applied" = false ]; then
-        if [[ "$connection_state" == activated* ]]; then
+        if [ "$has_active_device" = true ]; then
           if nmcli connection up "$service" >/dev/null 2>&1; then
             dns_applied=true
           fi
