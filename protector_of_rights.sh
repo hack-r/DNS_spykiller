@@ -144,6 +144,7 @@ while IFS= read -r service; do
 
   desired_dns=()
   replace_dns=false
+  preserved_dns=false
   replacement_quad9_pool=()
   quad9_index=0
 
@@ -159,6 +160,7 @@ while IFS= read -r service; do
 
   for dns_server in "${current_dns[@]}"; do
     if is_allowed_dns "$dns_server"; then
+      preserved_dns=true
       if ! contains_dns "$dns_server" "${desired_dns[@]}"; then
         desired_dns+=("$dns_server")
       fi
@@ -170,11 +172,13 @@ while IFS= read -r service; do
   done
 
   if [ "$replace_dns" = true ]; then
-    for quad9_dns in "${QUAD9_DNS[@]}"; do
-      if ! contains_dns "$quad9_dns" "${desired_dns[@]}"; then
-        desired_dns+=("$quad9_dns")
-      fi
-    done
+    if [ "$preserved_dns" = false ]; then
+      for quad9_dns in "${QUAD9_DNS[@]}"; do
+        if ! contains_dns "$quad9_dns" "${desired_dns[@]}"; then
+          desired_dns+=("$quad9_dns")
+        fi
+      done
+    fi
 
     networksetup -setdnsservers "$service" "${desired_dns[@]}"
   else
