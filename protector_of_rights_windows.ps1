@@ -29,16 +29,9 @@ foreach ($adapter in $adapters) {
         continue
     }
 
-    $desired = @($current | Where-Object { $_ -in $allowed } | Select-Object -Unique)
-    if ($desired.Count -eq 0) {
-        $desired = @($quad9)
-    }
+    $desired = @($quad9)
 
-    foreach ($dns in $quad9) {
-        if ($desired.Count -ge [Math]::Max($current.Count, 2)) {
-            break
-        }
-
+    foreach ($dns in ($current | Where-Object { $_ -in $allowlistValues } | Select-Object -Unique)) {
         if ($dns -notin $desired) {
             $desired += $dns
         }
