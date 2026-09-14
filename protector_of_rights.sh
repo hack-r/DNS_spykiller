@@ -274,6 +274,8 @@ set_service_dns() {
           if nmcli connection up "$service" >/dev/null 2>&1; then
             dns_applied=true
           fi
+        else
+          dns_applied=true
         fi
       fi
 
