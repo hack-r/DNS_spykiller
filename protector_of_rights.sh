@@ -7,12 +7,12 @@ ALLOWLIST=()
 
 usage() {
   cat <<'EOF'
-Usage: protector_of_rights.sh [--allow "IP_OR_HOST [MORE_IPS_OR_HOSTS]"]
+Usage: protector_of_rights.sh [--allow "IP [MORE_IPS]"]
 
 Replaces non-Quad9 DNS servers with Quad9 on macOS network services.
 
 Options:
-  --allow LIST   Space- or comma-separated DNS servers to preserve.
+  --allow LIST   Space- or comma-separated DNS server IPs to preserve.
                  You can also set DNS_ALLOWLIST with the same format.
   -h, --help     Show this help text.
 EOF
@@ -121,7 +121,7 @@ while IFS= read -r service; do
 
   if dns_output=$(networksetup -getdnsservers "$service" 2>&1); then
     :
-  elif [[ "$dns_output" == *"There aren't any DNS Servers set on $service."* ]]; then
+  elif [[ "$dns_output" == *"There aren't any DNS Servers set"* ]]; then
     echo "No DNS servers configured for network service: $service"
     continue
   else

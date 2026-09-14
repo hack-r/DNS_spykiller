@@ -8,13 +8,13 @@ This macOS script reviews each configured network service and replaces DNS serve
 ./protector_of_rights.sh
 ```
 
-Preserve specific resolvers with an allowlist:
+Preserve specific resolver IPs with an allowlist:
 
 ```bash
 ./protector_of_rights.sh --allow "127.0.0.1 ::1 134.195.4.2"
 ```
 
-You can also use `DNS_ALLOWLIST` with space- or comma-separated values:
+You can also use `DNS_ALLOWLIST` with space- or comma-separated IP values:
 
 ```bash
 DNS_ALLOWLIST="127.0.0.1,::1,134.195.4.2" ./protector_of_rights.sh
