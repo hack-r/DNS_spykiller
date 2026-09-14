@@ -170,6 +170,12 @@ while IFS= read -r service; do
   done
 
   if [ "$replace_dns" = true ]; then
+    for quad9_dns in "${QUAD9_DNS[@]}"; do
+      if ! contains_dns "$quad9_dns" "${desired_dns[@]}"; then
+        desired_dns+=("$quad9_dns")
+      fi
+    done
+
     networksetup -setdnsservers "$service" "${desired_dns[@]}"
   else
     echo "DNS settings already allowed for network service: $service"
