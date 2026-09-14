@@ -174,7 +174,7 @@ list_services() {
       networksetup -listallnetworkservices
       ;;
     linux-debian|linux-fedora)
-      nmcli -t -f UUID connection show --active | sed '/^$/d'
+      nmcli -t -f UUID connection show | sed '/^$/d'
       ;;
   esac
 }
@@ -255,7 +255,9 @@ set_service_dns() {
 
       local active_device
       local active_devices_raw
+      local connection_state
       local dns_applied=false
+      connection_state=$(nmcli -g GENERAL.STATE connection show "$service" | head -n 1)
       active_devices_raw=$(nmcli -g GENERAL.DEVICES connection show "$service" | head -n 1)
       active_devices_raw="${active_devices_raw//:/ }"
       active_devices_raw="${active_devices_raw//,/ }"
@@ -267,8 +269,14 @@ set_service_dns() {
         fi
       done
 
-      if [ "$dns_applied" = false ] && nmcli connection up "$service" >/dev/null 2>&1; then
-        dns_applied=true
+      if [ "$dns_applied" = false ]; then
+        if [[ "$connection_state" == *activated* ]]; then
+          if nmcli connection up "$service" >/dev/null 2>&1; then
+            dns_applied=true
+          fi
+        else
+          dns_applied=true
+        fi
       fi
 
       if [ "$dns_applied" = false ]; then
@@ -309,11 +317,6 @@ done
 
 detect_platform
 services_output=$(list_services)
-
-if [[ "$PLATFORM" == linux-* ]] && [ -z "$services_output" ]; then
-  echo "No active NetworkManager connections were found on $PLATFORM_LABEL." >&2
-  exit 1
-fi
 
 while IFS= read -r service; do
   service_label="$service"
